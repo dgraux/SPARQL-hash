@@ -136,6 +136,64 @@
 	}
     </style>
     <script src="bundle-min.js"></script>
+    <script src="sweetalert.min.js"></script>
+    <style>
+	.swal-title {
+	    margin: 0px;
+	    font-size: 16px;
+	    box-shadow: 0px 1px 1px rgba(0, 0, 0, 0.21);
+	    margin-bottom: 28px;
+	}
+
+	.swal-text {
+	    background-color: #FEFAE3;
+	    padding: 17px;
+	    border: 1px solid #F0E1A1;
+	    display: block;
+	    margin: 22px;
+	    color: #61534e;
+	}
+
+	.swal-wide {
+	    width: 50% !important;
+	}
+    </style>
+    <script>
+	function copyToClipboard(val) {
+	    var dummy = document.createElement("input");
+	    document.body.appendChild(dummy);
+	    dummy.setAttribute("id", "dummy_id");
+	    document.getElementById("dummy_id").value = val;
+	    dummy.select();
+	    document.execCommand("copy");
+	    document.body.removeChild(dummy);
+	}
+
+	function open_dialog(query) {
+	    swal({
+		    title: "Generated SPARQL query:",
+		    content: {
+		        element: "pre",
+		        attributes: {
+		            style: "text-align: justify",
+		            innerText: query,
+		        },
+		    },
+		    className: 'swal-wide',
+		    buttons: ['Close', 'Copy to clipboard'],
+		})
+		.then(function(value) {
+		    if (value) {
+		        copyToClipboard(query);
+		        swal({
+		            text: "SPARQL query copied to clipboard",
+		            icon: "success",
+		            button: "ok"
+		        });
+		    }
+		});
+	}
+    </script>
     <script>
 	function hashSPARQLresults(field_to_be_retrieved, hash_to_be_used) {
 	    // Get the SPARQL query and the hash function.
@@ -210,8 +268,10 @@
 		    })
 		    .join("SELECT"));
 
-		//alert(query_itself);
-		alert(pref_and_base + header + query_itself.replace(/^/gm, '\t\t') + footer);
+		var final_query = pref_and_base + header + query_itself.replace(/^/gm, '\t\t') + footer ;
+		open_dialog(final_query);
+		//alert(pref_and_base + header + query_itself.replace(/^/gm, '\t\t') + footer);
+		//open_dialog(pref_and_base + header + query_itself.replace(/^/gm, '\t\t') + footer);
 	    } catch (err) {
 		alert(err);
 	    }
