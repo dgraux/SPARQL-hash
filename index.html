@@ -1,0 +1,417 @@
+<!DOCTYPE HTML>
+<html lang="en">
+  <head>
+    <title>Hashing SPARQL results</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+    <meta content="utf-8" http-equiv="encoding">
+
+    <style>
+	body {
+	    margin: 20px 50px;
+	}
+
+	p {
+	    margin: 20px 20px;
+	    text-align: justify;
+	    text-justify: inter-word;
+	}
+
+	code {
+	    background: #F1F1F1;
+	}
+
+	a:link,
+	a:visited {
+	    color: blue;
+	    background-color: transparent;
+	    text-decoration: none;
+	}
+
+	a:hover {
+	    color: red;
+	    background-color: transparent;
+	    text-decoration: underline;
+	}
+
+	.header {
+	    border-radius: 15px;
+	    padding: 20px;
+	    text-align: center;
+	    background-color: rgb(75, 125, 190);
+	    color: white;
+	}
+
+	.column {
+	    float: left;
+	}
+
+	/* Middle column */
+	.column.middle {
+	    width: 25%;
+	}
+
+	/* Left column */
+	.column.left {
+	    width: 45%;
+	}
+
+	/* Right column */
+	.column.right {
+	    width: 30%;
+	}
+
+	/* Responsive layout - makes the three columns stack on top of each other instead of next to each other */
+	@media screen and (max-width: 600px) {
+	    .column.left,
+	    .column.middle,
+	    .column.right {
+		width: 100%;
+	    }
+	}
+
+	.row:after {
+	    content: "";
+	    display: table;
+	    clear: both;
+	}
+
+	.page-header {
+	    border-radius: 6px;
+	    padding: 5px 15px;
+	    margin-top: 10px;
+	    margin-bottom: 10px;
+	    margin-right: 10px;
+	}
+
+	h1.page-header {
+	    background-color: rgb(75, 125, 190);
+	    color: white;
+	}
+
+	h2.page-header {
+	    background-color: rgb(218, 229, 241);
+	}
+
+	h3.page-header {
+	    background-color: rgb(238, 238, 238);
+	}
+
+	.footer {
+	    background-color: #F1F1F1;
+	    text-align: center;
+	    padding: 10px;
+	}
+
+	table {
+	    width: 98%;
+	    margin-left: auto;
+	    margin-right: auto;
+	}
+
+	table,
+	th,
+	td {
+	    border: 1px solid black;
+	    border-collapse: collapse;
+	}
+
+	th,
+	td {
+	    padding: 5px;
+	    text-align: left;
+	}
+
+	table#t01 tr:nth-child(even) {
+	    background-color: rgb(238, 238, 238);
+	}
+
+	table#t01 tr:nth-child(odd) {
+	    background-color: transparent;
+	}
+
+	table#t01 th {
+	    background-color: rgb(218, 229, 241);
+	    color: black;
+	}
+    </style>
+    <script src="bundle-min.js"></script>
+    <script>
+	function hashSPARQLresults(field_to_be_retrieved, hash_to_be_used) {
+	    // Get the SPARQL query and the hash function.
+	    var x = field_to_be_retrieved.value.trim();
+	    var hash_method = hash_to_be_used;
+
+
+	    // Just checking if a query was submitted.
+	    if (x === "") {
+		alert("Please, enter a query.");
+		return;
+	    }
+
+	    function onlyUnique(value, index, self) {
+		return self.indexOf(value) === index;
+	    }
+
+	    try {
+		// Extract distinguished variables.
+		var parser = new Semantic.Parser;
+		var parsedQuery = parser.parse(x);
+
+		if (parsedQuery.variables[0].value !== "*") {
+		    var variables = JSON.stringify(parsedQuery.variables)
+		        .match(/\"termType\":\"Variable\",\"value\":\"(.*?)\"/g)
+		        .map(function(val) {
+		            return val.replace(/\"termType\":\"Variable\",\"value\":\"/g, '').replace(/\"/g, '');
+		        })
+		        .sort()
+		        .filter(onlyUnique)
+		        .map(function(val) {
+		            return "?".concat(val);
+		        });
+		} else {
+		    var variables = JSON.stringify(parsedQuery.where)
+		        .match(/\"termType\":\"Variable\",\"value\":\"(.*?)\"/g)
+		        .map(function(val) {
+		            return val.replace(/\"termType\":\"Variable\",\"value\":\"/g, '').replace(/\"/g, '');
+		        })
+		        .sort()
+		        .filter(onlyUnique)
+		        .map(function(val) {
+		            return "?".concat(val);
+		        });
+		}
+
+		var header = "SELECT (" + hash_method + "(GROUP_CONCAT(CONCAT(";
+		variables.forEach(function(item, index, array) {
+		    if (index !== array.length - 1) {
+		        header += "STR(".concat(item, "),");
+		    } else {
+		        header += "STR(".concat(item, ")");
+		    }
+		});
+		header += "); separator=\' \\n\')) as ?H ) WHERE{\n"
+		header += "\tSELECT * WHERE {\n";
+
+		var footer = "\n\t} ORDER BY ";
+		variables.forEach(function(item) {
+		    footer += item.concat(" ");
+		});
+		footer += "\n}";
+
+		var generator = new Semantic.Generator({
+		    /* prefixes, baseIRI, factory, sparqlStar */
+		});
+		var generatedQuery = generator.stringify(parsedQuery);
+		var pref_and_base = generatedQuery.split(/SELECT/i, 2)[0];
+		var query_itself = "SELECT".concat(generatedQuery.split(/select/i)
+		    .filter(function(value, index, array) {
+		        return index > 0;
+		    })
+		    .join("SELECT"));
+
+		//alert(query_itself);
+		alert(pref_and_base + header + query_itself.replace(/^/gm, '\t\t') + footer);
+	    } catch (err) {
+		alert(err);
+	    }
+	}
+    </script>
+  </head>
+
+
+
+
+  <body>
+    
+    <div class="header">
+      <h1>Hashing SPARQL query results</h1>
+      <h2>~A SPARQL-based approach to track RDF updates~</h2>
+    </div>
+
+    
+    <div class="row">
+      <div class="column left">
+	<h2 class="page-header">Description</h2>
+	<h3 class="page-header">Context</h3>
+	<p>
+	  The recent increase
+	  of <a href="https://www.w3.org/TR/rdf11-primer/">RDF</a>
+	  usage has witnessed a rising need of "verification" around
+	  obtained data from SPARQL endpoints. Some use-cases focus,
+	  for instance, on data encryption, access-control, or
+	  cryptographic signature of graphs. Practically, complex ETL
+	  pipelines relying on SPARQL endpoints to extract relevant
+	  information often have to be relaunched from scratch every
+	  once in a while in order to refresh their data. Such a habit
+	  implies loads of the network and is heavy resource-wise
+	  while sometimes unnecessary if data remained untouched.
+	  <br>
+	  Here, we present and discuss a useful method, exclusively
+	  based on SPARQL 1.1 available features, to help data
+	  consumers (and pipeline designers) to check when data has
+	  been updated. In particular, we show that SPARQL can be used
+	  to sign parts of <code>SELECT</code> results to inform data
+	  consumers of the need to update their extracted/refined
+	  data.
+	</p>
+
+	<h3 class="page-header">SPARQL hash functions</h3>
+	<p>
+	  The <a href="https://www.w3.org/TR/2013/REC-sparql11-overview-20130321/">SPARQL
+	  1.1 standard</a> provides a large set of built-in functions,
+	  from ones dedicated to strings to specific ones about
+	  dates. These can be used by query designers to refine their
+	  result set. In particular, the standard offers a set of
+	  five <a href="https://www.w3.org/TR/sparql11-query/#func-hash">hash
+	  functions</a>: <code>MD5</code>, <code>SHA1</code>, <code>SHA256</code>, <code>SHA384</code>
+	  &amp; <code>SHA512</code>.
+	</p>
+	<h3 class="page-header">General method</h3>
+	<p>
+	  As we know, on the same endpoint, the same query (without
+	  calls to <code>RAND</code>) is suppose to return the same
+	  result for the same dataset. Therefore, we think this
+	  SPARQL-based <i>slight</i> signing approach could be useful
+	  for ETL pipeline designers. Indeed, a common challenge for
+	  pipeline designers is to know when a refresh, <i>i.e.</i> a
+	  re-run (often from scratch), is needed since original data
+	  have changed. Most of the time, there is no way to know
+	  <i>a priori</i> that datasets have been updated and thereby
+	  pipelines are often run uselessly when nothing has been
+	  modified. This, unfortunately, leads to time-consuming and
+	  (sometimes) costly processes in terms of both resources and
+	  network bandwidth, as multiple intermediate results involved
+	  by the pipelines are shuffled.
+	  <br>
+	  To tackle this issue, a hash of the results could be
+	  computed by the endpoint itself and be compared with a
+	  previously obtained hash the user would have
+	  saved. Therefore, the user could decide to run the query
+	  (and the rest of the pipeline) again if the hash is
+	  different. Assuming <code>Q</code> is the SPARQL
+	  <code>select</code> query that is part of the pipeline, we
+	  propose the following steps to compute the hash:
+	</p>
+	<ol>
+	  <li>Extract the list of distinguished
+	    variables <code>V</code> (if a <code>*</code> is given,
+	    the considered variables are the ones involved in
+	    the <code>where {...}</code>);</li>
+	  <li>Wrap <code>Q</code> in a <code>select * ...</code> query
+	    ordered by <code>V</code> (this is required
+	    as <code>group_concat</code> isn't deterministic
+	    otherwise);</li>
+	  <li>Embed the obtained query in a <code>select</code> query
+	    computing the hash of the grouped concatenation of the
+	    cast (to string) distinguished variables.</li>
+	</ol>
+	  
+      </div>
+      
+      <div class="column middle">
+	<h2 class="page-header">Examples</h2>
+
+	<p>
+	  We developed a Javascript function able to take a
+	  <code>SELECT</code> query and transform it so that its
+	  execution would return the hash of the results. Technically,
+	  our solution is
+	  using <a href="https://github.com/RubenVerborgh/SPARQL.js">sparql.js</a>
+	  to properly parse SPARQL 1.1.
+	</p>
+	
+	<textarea id="example0" rows="8" cols="50" style="width:95%" readonly>
+# Following the steps of the General Method:
+# 1. ?s is the only variable;
+# 2. the query is wrapped into:
+#     select * where { ... } order by ?s
+# 3. the hash is applied on the group_concat of it
+	  
+SELECT ?s WHERE { ?s ?p ?o . }
+	</textarea>
+	<button onclick="hashSPARQLresults(example0,'MD5')">Hash the results with MD5</button>
+	<br><br>
+
+	<textarea id="example1" rows="1" cols="50" style="width:95%" readonly>
+SELECT * WHERE { _:blank ?p ?o . } LIMIT 10
+	</textarea>
+	<button onclick="hashSPARQLresults(example1,'MD5')">Hash the results with MD5</button>
+	<br><br>
+	
+	<textarea id="example2" rows="6" cols="50" style="width:95%" readonly>
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+SELECT distinct ?mickey WHERE {
+	?mickey foaf:name "Mickey Mouse"@en; 
+		foaf:knows ?other.
+}
+	</textarea>
+	<button onclick="hashSPARQLresults(example2,'SHA1')">Hash the results with SHA1</button>
+	<br><br>
+
+	<textarea id="example3" rows="11" cols="50" style="width:95%" readonly>
+PREFIX dbo: <http://dbpedia.org/ontology/>
+PREFIX dbr: <http://dbpedia.org/resource/>
+PREFIX dbp: <http://dbpedia.org/property/>
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+SELECT ?members ?bandName WHERE {
+ ?band dbo:genre dbr:Punk_rock .
+ ?band dbp:currentMembers ?members .
+ ?band foaf:name ?bandName
+ FILTER(langMatches(lang(?bandName), "en"))
+}
+	</textarea>
+	<button onclick="hashSPARQLresults(example3,'SHA512')">Hash the results with SHA512</button>
+
+      </div>
+
+      <div class="column right">
+	<h2 class="page-header">Try it yourself &#9786;</h2>
+	<textarea id="user_example" rows="40" cols="50" style="width:95%" placeholder="Enter your own query here...&#10;select * where { ?s ?p ?o .}"></textarea><br>
+	Choose your preferred hash function:
+	<select id="hash_function">
+	  <option value="MD5" selected="selected">MD5</option>
+	  <option value="SHA1">SHA1</option>
+	  <option value="SHA256">SHA256</option>
+	  <option value="SHA384">SHA384</option>
+	  <option value="SHA512">SHA512</option>
+	</select>
+	<br> 
+	<button onclick="hashSPARQLresults(user_example,document.getElementById('hash_function').value)">Generate your query</button>
+	<br>
+	(Note: a SELECT query is expected...)
+
+      </div>
+    </div>
+    
+    <br/>
+    <br/>
+
+    <div class="row">
+      <div style="float: left; width: 15%;">
+        <h3 class="page-header">Contacts</h3>
+	<ul>
+	  <li><a href="https://dgraux.github.io/">Damien Graux</a></li>
+	  <li><a href="http://fabriziorlandi.net/">Fabrizio Orlandi</a></li>
+	  <li><a href="https://www.tcd.ie/research/profiles/?profile=osulldps">Declan O'Sullivan</a></li>
+	</ul>
+      </div>
+      <div style="float: left; width: 30%;">
+	<h3 class="page-header">Affiliations</h3>
+	<a href="https://inria.fr/en"><img src="inria.png" alt="Inria's logo" height="70px"></a>
+	<a href="https://tcd.ie/"><img src="trinity.png" alt="TrinityCollege's logo" height="70"></a>
+	<a href="https://www.adaptcentre.ie/"><img src="adapt.png" alt="ADAPT's logo" height="70"></a>
+      </div>
+    </div>
+      
+    <footer>
+      <hr/>
+      <div class="footer">
+	Last update: March 2021
+      </div>
+    </footer>
+    
+  </body>
+  
+</html>
+
