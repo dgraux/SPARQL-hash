@@ -175,7 +175,7 @@
 		    content: {
 		        element: "pre",
 		        attributes: {
-		            style: "text-align: justify",
+		            style: "text-align: justify; font-size: 12px; overflow: auto",
 		            innerText: query,
 		        },
 		    },
@@ -304,7 +304,7 @@
 	  pipelines relying on SPARQL endpoints to extract relevant
 	  information often have to be relaunched from scratch every
 	  once in a while in order to refresh their data. Such a habit
-	  implies loads of the network and is heavy resource-wise
+	  implies loads on the network and is heavy resource-wise
 	  while sometimes unnecessary if data remained untouched.
 	  <br>
 	  Here, we present and discuss a useful method, exclusively
@@ -427,7 +427,7 @@ SELECT ?members ?bandName WHERE {
 
       <div class="column right">
 	<h2 class="page-header">Try it yourself &#9786;</h2>
-	<textarea id="user_example" rows="40" cols="50" style="width:95%" placeholder="Enter your own query here...&#10;select * where { ?s ?p ?o .}"></textarea><br>
+	<textarea id="user_example" rows="40" cols="50" style="width:95%" placeholder="#Enter your own query here...&#10;select * where { ?s ?p ?o .}"></textarea><br>
 	Choose your preferred hash function:
 	<select id="hash_function">
 	  <option value="MD5" selected="selected">MD5</option>
