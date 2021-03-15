@@ -187,7 +187,7 @@
 		        copyToClipboard(query);
 		        swal({
 		            text: "SPARQL query copied to clipboard",
-		            icon: "success",
+		            icon: "success", timer: "5000",
 		            button: "ok"
 		        });
 		    }
@@ -248,7 +248,7 @@
 		        header += "STR(".concat(item, ")");
 		    }
 		});
-		header += "); separator=\' \\n\')) as ?H ) WHERE{\n"
+		header += "); separator=\' \\n\')) as ?ResultSetHash ) WHERE{\n"
 		header += "\tSELECT * WHERE {\n";
 
 		var footer = "\n\t} ORDER BY ";
@@ -298,22 +298,21 @@
 	  The recent increase
 	  of <a href="https://www.w3.org/TR/rdf11-primer/">RDF</a>
 	  usage has witnessed a rising need of "verification" around
-	  obtained data from SPARQL endpoints. Some use-cases focus,
-	  for instance, on data encryption, access-control, or
-	  cryptographic signature of graphs. Practically, complex ETL
+	  obtained data from SPARQL endpoints. It is now possible to
+	  deploy Semantic Web pipelines and to adapt them to a wide
+	  range of needs and use-cases. Practically, these complex ETL
 	  pipelines relying on SPARQL endpoints to extract relevant
 	  information often have to be relaunched from scratch every
 	  once in a while in order to refresh their data. Such a habit
-	  implies loads on the network and is heavy resource-wise
-	  while sometimes unnecessary if data remained untouched.
+	  adds load on the network and is heavy resource-wise, while
+	  sometimes unnecessary if data remains untouched.
 	  <br>
-	  Here, we present and discuss a useful method, exclusively
-	  based on SPARQL 1.1 available features, to help data
-	  consumers (and pipeline designers) to check when data has
-	  been updated. In particular, we show that SPARQL can be used
-	  to sign parts of <code>SELECT</code> results to inform data
-	  consumers of the need to update their extracted/refined
-	  data.
+	  Here, we present a useful method to help data consumers (and
+	  pipeline designers) identify when data has been updated in a
+	  way that impacts the pipeline's result set. This method is
+	  based on standard SPARQL 1.1 features and relies on
+	  digitally signing parts of query result sets to inform data
+	  consumers about their eventual change.
 	</p>
 
 	<h3 class="page-header">SPARQL hash functions</h3>
@@ -330,31 +329,33 @@
 	<h3 class="page-header">General method</h3>
 	<p>
 	  As we know, on the same endpoint, the same query (without
-	  calls to <code>RAND</code>) is suppose to return the same
-	  result for the same dataset. Therefore, we think this
-	  SPARQL-based <i>slight</i> signing approach could be useful
-	  for ETL pipeline designers. Indeed, a common challenge for
-	  pipeline designers is to know when a refresh, <i>i.e.</i> a
-	  re-run (often from scratch), is needed since original data
-	  have changed. Most of the time, there is no way to know
-	  <i>a priori</i> that datasets have been updated and thereby
-	  pipelines are often run uselessly when nothing has been
-	  modified. This, unfortunately, leads to time-consuming and
-	  (sometimes) costly processes in terms of both resources and
-	  network bandwidth, as multiple intermediate results involved
-	  by the pipelines are shuffled.
+	  calls to functions like <code>RAND</code>
+	  or <code>NOW</code>) is suppose to return the same result
+	  for the same dataset. Therefore, we think this
+	  SPARQL-based <i>lightweight</i> signing approach could be
+	  useful for ETL pipeline designers. Indeed, a common
+	  challenge for pipeline designers is to know when a
+	  refresh, <i>i.e.</i> a re-run (often from scratch), is
+	  needed, following a data update. Most of the time,
+	  there is no way to know
+	  <i>a priori</i> that datasets have been updated and,
+	  thereby, pipelines are often run uselessly when nothing has
+	  been modified. This, unfortunately, leads to time-consuming
+	  and (sometimes) costly processes in terms of both resources
+	  and network bandwidth, as multiple intermediate results
+	  involved by the pipelines are shuffled.
 	  <br>
 	  To tackle this issue, a hash of the results could be
 	  computed by the endpoint itself and be compared with a
-	  previously obtained hash the user would have
-	  saved. Therefore, the user could decide to run the query
-	  (and the rest of the pipeline) again if the hash is
-	  different. Assuming <code>Q</code> is the SPARQL
-	  <code>select</code> query that is part of the pipeline, we
-	  propose the following steps to compute the hash:
+	  previously obtained hash the user would have saved.  Incase
+	  of a mismatch, the query (and the rest of the pipeline)
+	  could be run again. Assuming <code>Q</code> is the
+	  considered SPARQL <code>select</code> query, we propose the
+	  following steps to generate <b>a query which computes the hash
+	  of the results of <code>Q</code></b>:
 	</p>
 	<ol>
-	  <li>Extract the list of distinguished
+	  <li>Extract and sort the list of distinguished
 	    variables <code>V</code> (if a <code>*</code> is given,
 	    the considered variables are the ones involved in
 	    the <code>where {...}</code>);</li>
@@ -366,7 +367,7 @@
 	    computing the hash of the grouped concatenation of the
 	    cast (to string) distinguished variables.</li>
 	</ol>
-	  
+
       </div>
       
       <div class="column middle">
